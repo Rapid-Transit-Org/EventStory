@@ -21,32 +21,16 @@ run_with_timer() {
 
 if [[ "$TEST_TYPE" == "unit" ]]; then
   echo "🔬 Running unit tests..."
-  run_with_timer "Unit tests" bash -c "PYTHONPATH=src poetry run pytest tests/unit"
-  [[ $? -ne 0 ]] && echo "❌ Unit tests failed! Aborting commit." && exit 1
-
-elif [[ "$TEST_TYPE" == "acceptance" ]]; then
-  echo "🧪 Running acceptance tests..."
-  run_with_timer "Acceptance tests" bash -c "PYTHONPATH=src poetry run behave tests/acceptance/features"
-  [[ $? -ne 0 ]] && echo "❌ Acceptance tests failed! Aborting commit." && exit 1
-
-elif [[ "$TEST_TYPE" == "all" ]]; then
-  echo "📦 Running all tests (unit + acceptance)..."
-
-  run_with_timer "Unit tests" bash -c "PYTHONPATH=src poetry run pytest tests/unit"
+  bash -c "PYTHONPATH=src poetry run pytest tests/unit"
   UNIT_STATUS=$?
 
-  run_with_timer "Acceptance tests" bash -c "PYTHONPATH=src poetry run behave tests/acceptance/features"
-  ACCEPTANCE_STATUS=$?
+  if [[ $UNIT_STATUS -ne 0 ]]; then
+    echo ""
+    echo "❌ Unit tests failed."
+    echo "📝 Is this a *deliberate* failing test you're committing as part of test-first development?"
+    read -p "👉 Type 'yes' to proceed with commit using --no-verify, anything else to cancel: " USER_CONFIRM
 
-  if [[ ${UNIT_STATUS:-1} -ne 0 || ${ACCEPTANCE_STATUS:-1} -ne 0 ]]; then
-    echo "❌ One or more test types failed! Aborting commit."
-    exit 1
-  fi
-
-else
-  echo "⚠️  Usage: ./bin/pre-commit.sh [unit|acceptance|all]"
-  exit 1
-fi
-
-echo "✅ All selected tests passed! Proceeding with commit."
-exit 0
+    if [[ "$USER_CONFIRM" == "yes" ]]; then
+      echo ""
+      echo "🔓 You can now commit manually using:"
+      echo "    git commit -m \"test

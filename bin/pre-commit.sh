@@ -4,6 +4,32 @@ cd "$(dirname "$0")/.." || exit 1
 
 echo "🧭 Running from: $(pwd)"
 
+# ------------------------
+# Check if this is a docs-only or story-only commit
+# ------------------------
+
+# Get all staged files
+STAGED_FILES=$(git diff --cached --name-only)
+
+# Count how many staged files are *not* in docs/, stories/, or README.md
+NON_TEST_FILES_ONLY=$(echo "$STAGED_FILES" | grep -vE '^(docs/|stories/|README\.md$)' | wc -l)
+
+# IMPORTANT:
+# We treat .feature files as executable test specs — they should still trigger test runs.
+# So features/*.feature are *not* excluded from triggering tests.
+
+if [[ $NON_TEST_FILES_ONLY -eq 0 ]]; then
+  echo "📝 Only markdown docs or stories staged — skipping test execution."
+  echo "📂 Staged files:"
+  echo "$STAGED_FILES" | sed 's/^/   - /'
+  echo ""
+  exit 0
+fi
+
+# ------------------------
+# Proceed with test logic
+# ------------------------
+
 TEST_TYPE=$1
 
 # Function to time any block of commands

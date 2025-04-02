@@ -8,15 +8,8 @@ echo "🧭 Running from: $(pwd)"
 # Check if this is a docs-only or story-only commit
 # ------------------------
 
-# Get all staged files
 STAGED_FILES=$(git diff --cached --name-only)
-
-# Count how many staged files are *not* in docs/, stories/, or README.md
 NON_TEST_FILES_ONLY=$(echo "$STAGED_FILES" | grep -vE '^(docs/|stories/|README\.md$)' | wc -l)
-
-# IMPORTANT:
-# We treat .feature files as executable test specs — they should still trigger test runs.
-# So features/*.feature are *not* excluded from triggering tests.
 
 if [[ $NON_TEST_FILES_ONLY -eq 0 ]]; then
   echo "📝 Only markdown docs or stories staged — skipping test execution."
@@ -32,7 +25,6 @@ fi
 
 TEST_TYPE=$1
 
-# Function to time any block of commands
 run_with_timer() {
   local label=$1
   shift
@@ -51,43 +43,14 @@ if [[ "$TEST_TYPE" == "unit" ]]; then
   UNIT_STATUS=$?
 
   if [[ $UNIT_STATUS -ne 0 ]]; then
-    echo ""
-    echo "❌ Unit tests failed."
-    echo "📝 Is this a *deliberate* failing test you're committing as part of test-first development?"
-    echo -n "👉 Type 'yes' to proceed with commit using --no-verify, anything else to cancel: "
-    read USER_CONFIRM < /dev/tty
-
-    if [[ "$USER_CONFIRM" == "yes" ]]; then
-      echo ""
-      echo "✅ Okay! Since you're committing a *deliberately failing* test:"
-      echo ""
-      echo "🔹 Step 1:"
-      echo "   Copy the following command (highlight it and press ⌘ + C):"
-      echo ""
-      echo '   git commit -m "test(wip): add failing test for [what it’s testing]" --no-verify'
-      echo ""
-      echo "🔹 Step 2:"
-      echo "   Paste it into your terminal (⌘ + V) and press return."
-      echo ""
-      echo "💬 You can adjust the commit message to explain *what* the test is checking."
-      echo ""
-      echo "💡 Why this works:"
-      echo "   • The '--no-verify' flag skips the pre-commit check *just this once*."
-      echo "   • The 'test(wip):' prefix shows this is an intentional work-in-progress."
-      echo ""
-      echo "🎯 You're practicing test-first thinking. Keep going!"
-      echo ""
-      exit 0
-    else
-      echo "🛑 Commit cancelled."
-      exit 1
-    fi
+    echo "❌ Unit tests failed — commit aborted."
+    exit 1
   fi
 
 elif [[ "$TEST_TYPE" == "acceptance" ]]; then
   echo "🧪 Running acceptance tests..."
   run_with_timer "Acceptance tests" bash -c "PYTHONPATH=src poetry run behave tests/acceptance/features"
-  [[ $? -ne 0 ]] && echo "❌ Acceptance tests failed! Aborting commit." && exit 1
+  [[ $? -ne 0 ]] && echo "❌ Acceptance tests failed — commit aborted." && exit 1
 
 elif [[ "$TEST_TYPE" == "all" ]]; then
   echo "📦 Running all tests (unit + acceptance)..."
@@ -99,7 +62,7 @@ elif [[ "$TEST_TYPE" == "all" ]]; then
   ACCEPTANCE_STATUS=$?
 
   if [[ ${UNIT_STATUS:-1} -ne 0 || ${ACCEPTANCE_STATUS:-1} -ne 0 ]]; then
-    echo "❌ One or more test types failed! Aborting commit."
+    echo "❌ One or more test types failed — commit aborted."
     exit 1
   fi
 
@@ -108,5 +71,5 @@ else
   exit 1
 fi
 
-echo "✅ All selected tests passed! Proceeding with commit."
+echo "✅ All selected tests passed — commit allowed."
 exit 0
